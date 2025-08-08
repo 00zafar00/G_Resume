@@ -295,12 +295,12 @@
             <div class="game-container">
                 <div class="game-tabs">
                     <div class="game-tab active" onclick="switchGame('breakout')">Breakout</div>
-                    <div class="game-tab" onclick="switchGame('flappy')">Flappy Bird</div>
+                    <div class="game-tab" onclick="switchGame('racing')">Car Racing</div>
                 </div>
                 
                 <div class="game-canvas-container">
                     <canvas id="breakoutCanvas" class="game-canvas" height="400"></canvas>
-                    <canvas id="flappyCanvas" class="game-canvas" height="400" style="display:none;"></canvas>
+                    <canvas id="racingCanvas" class="game-canvas" height="400" style="display:none;"></canvas>
                 </div>
                 
                 <div class="game-controls">
@@ -308,7 +308,7 @@
                     <button class="game-btn" id="resetBtn">Reset</button>
                     <div id="gameScore">Score: 0</div>
                 </div>
-                <p id="mobile-controls-hint" style="display:none;">Tap left/right to move</p>
+                <p id="mobile-controls-hint" style="display:none;">Use arrow keys or tap left/right to move</p>
             </div>
         </section>
         
@@ -342,10 +342,11 @@
         let currentGame = 'breakout';
         let gameRunning = false;
         let score = 0;
+        let animationFrameId = null;
         
         // Canvases
         const breakoutCanvas = document.getElementById('breakoutCanvas');
-        const flappyCanvas = document.getElementById('flappyCanvas');
+        const racingCanvas = document.getElementById('racingCanvas');
         let activeCanvas = breakoutCanvas;
         const ctx = activeCanvas.getContext('2d');
         const scoreDisplay = document.getElementById('gameScore');
@@ -359,7 +360,7 @@
             y: activeCanvas.height - 30,
             width: 50,
             height: 20,
-            speed: 5
+            speed: 10
         };
         
         let breakoutBall = {
@@ -370,31 +371,29 @@
             dy: -3
         };
         
-        // Flappy Bird game variables
-        let flappyBird = {
-            x: 50,
-            y: 150,
-            radius: 15,
-            velocity: 0,
-            gravity: 0.5,
-            jump: -10
+        // Car Racing game variables
+        let car = {
+            x: 150,
+            y: 300,
+            width: 40,
+            height: 70,
+            speed: 5
         };
         
-        let pipes = [];
-        let pipeGap = 150;
-        let pipeWidth = 50;
-        let pipeSpeed = 2;
-        let lastPipe = 0;
+        let roadSpeed = 3;
+        let roadY = 0;
+        let roadHeight = 800;
         
-        // Touch controls
-        let touchStartX = 0;
+        let obstacles = [];
+        let obstacleSpeed = 3;
+        let lastObstacleTime = 0;
+        let obstacleInterval = 2000;
         
         // Initialize canvases
         function initCanvases() {
-            // Set canvas sizes
             const containerWidth = document.querySelector('.game-canvas-container').clientWidth;
             breakoutCanvas.width = containerWidth;
-            flappyCanvas.width = containerWidth;
+            racingCanvas.width = containerWidth;
             
             // Set game dimensions
             breakoutPlayer.x = breakoutCanvas.width / 2 - 25;
@@ -402,44 +401,73 @@
             breakoutBall.x = breakoutCanvas.width / 2;
             breakoutBall.y = breakoutCanvas.height / 2;
             
-            flappyBird.x = 50;
-            flappyBird.y = flappyCanvas.height / 2;
+            car.x = racingCanvas.width / 2 - 20;
+            car.y = racingCanvas.height - 100;
+            roadHeight = racingCanvas.height * 2;
             
             // Show mobile controls hint if on mobile
             if (/Mobi|Android/i.test(navigator.userAgent)) {
                 mobileHint.style.display = 'block';
             }
+            
+            // Initial draw
+            if (currentGame === 'breakout') {
+                drawBreakout();
+            } else {
+                drawRacing();
+            }
+        }
+        
+        // Draw initial states
+        function drawBreakout() {
+            const ctx = breakoutCanvas.getContext('2d');
+            ctx.clearRect(0, 0, breakoutCanvas.width, breakoutCanvas.height);
+            drawBreakoutPlayer(ctx);
+            drawBreakoutBall(ctx);
+        }
+        
+        function drawRacing() {
+            const ctx = racingCanvas.getContext('2d');
+            ctx.clearRect(0, 0, racingCanvas.width, racingCanvas.height);
+            drawRoad(ctx);
+            drawCar(ctx);
         }
         
         // Switch between games
         function switchGame(game) {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            
             currentGame = game;
+            gameRunning = false;
             document.querySelectorAll('.game-tab').forEach(tab => {
                 tab.classList.remove('active');
             });
             
             if (game === 'breakout') {
                 breakoutCanvas.style.display = 'block';
-                flappyCanvas.style.display = 'none';
+                racingCanvas.style.display = 'none';
                 activeCanvas = breakoutCanvas;
                 document.querySelector('.game-tab:nth-child(1)').classList.add('active');
-                resetGame();
+                drawBreakout();
             } else {
                 breakoutCanvas.style.display = 'none';
-                flappyCanvas.style.display = 'block';
-                activeCanvas = flappyCanvas;
+                racingCanvas.style.display = 'block';
+                activeCanvas = racingCanvas;
                 document.querySelector('.game-tab:nth-child(2)').classList.add('active');
-                resetGame();
+                drawRacing();
             }
         }
         
         // Breakout game functions
-        function drawBreakoutPlayer() {
+        function drawBreakoutPlayer(ctx) {
             ctx.fillStyle = '#3498db';
             ctx.fillRect(breakoutPlayer.x, breakoutPlayer.y, breakoutPlayer.width, breakoutPlayer.height);
         }
         
-        function drawBreakoutBall() {
+        function drawBreakoutBall(ctx) {
             ctx.beginPath();
             ctx.arc(breakoutBall.x, breakoutBall.y, breakoutBall.radius, 0, Math.PI * 2);
             ctx.fillStyle = '#e74c3c';
@@ -448,10 +476,11 @@
         }
         
         function updateBreakout() {
+            const ctx = breakoutCanvas.getContext('2d');
             ctx.clearRect(0, 0, breakoutCanvas.width, breakoutCanvas.height);
             
-            drawBreakoutPlayer();
-            drawBreakoutBall();
+            drawBreakoutPlayer(ctx);
+            drawBreakoutBall(ctx);
             
             // Ball movement
             breakoutBall.x += breakoutBall.dx;
@@ -477,96 +506,126 @@
             }
             
             if (gameRunning) {
-                requestAnimationFrame(updateBreakout);
+                animationFrameId = requestAnimationFrame(updateBreakout);
             }
         }
         
-        // Flappy Bird game functions
-        function drawFlappyBird() {
+        // Car Racing game functions
+        function drawRoad(ctx) {
+            // Road background
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, 0, racingCanvas.width, racingCanvas.height);
+            
+            // Road markings
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([20, 20]);
+            
+            // Center line
             ctx.beginPath();
-            ctx.arc(flappyBird.x, flappyBird.y, flappyBird.radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#3498db';
-            ctx.fill();
-            ctx.closePath();
+            ctx.moveTo(racingCanvas.width / 2, roadY % roadHeight);
+            ctx.lineTo(racingCanvas.width / 2, (roadY % roadHeight) + racingCanvas.height);
+            ctx.stroke();
+            
+            // Side lines
+            ctx.beginPath();
+            ctx.moveTo(50, roadY % roadHeight);
+            ctx.lineTo(50, (roadY % roadHeight) + racingCanvas.height);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(racingCanvas.width - 50, roadY % roadHeight);
+            ctx.lineTo(racingCanvas.width - 50, (roadY % roadHeight) + racingCanvas.height);
+            ctx.stroke();
+            
+            ctx.setLineDash([]);
         }
         
-        function drawPipes() {
+        function drawCar(ctx) {
+            // Car body
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(car.x, car.y, car.width, car.height);
+            
+            // Windows
+            ctx.fillStyle = '#3498db';
+            ctx.fillRect(car.x + 5, car.y + 5, car.width - 10, 15);
+            ctx.fillRect(car.x + 5, car.y + 25, car.width - 10, 10);
+            ctx.fillRect(car.x + 5, car.y + 40, car.width - 10, 25);
+        }
+        
+        function drawObstacles(ctx) {
             ctx.fillStyle = '#2ecc71';
-            pipes.forEach(pipe => {
-                // Top pipe
-                ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
-                // Bottom pipe
-                ctx.fillRect(pipe.x, pipe.topHeight + pipeGap, pipeWidth, flappyCanvas.height - pipe.topHeight - pipeGap);
+            obstacles.forEach(obs => {
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                
+                // Obstacle details
+                ctx.fillStyle = '#27ae60';
+                ctx.fillRect(obs.x + 5, obs.y + 5, obs.width - 10, obs.height - 10);
+                ctx.fillStyle = '#2ecc71';
             });
         }
         
-        function updateFlappy() {
-            ctx.clearRect(0, 0, flappyCanvas.width, flappyCanvas.height);
+        function updateRacing() {
+            const ctx = racingCanvas.getContext('2d');
+            ctx.clearRect(0, 0, racingCanvas.width, racingCanvas.height);
             
-            // Apply gravity
-            flappyBird.velocity += flappyBird.gravity;
-            flappyBird.y += flappyBird.velocity;
+            // Update road position
+            roadY += roadSpeed;
             
-            // Generate pipes
-            if (flappyCanvas.width - lastPipe > 200) {
-                const topHeight = Math.floor(Math.random() * (flappyCanvas.height - pipeGap - 50)) + 20;
-                pipes.push({
-                    x: flappyCanvas.width,
-                    topHeight: topHeight,
-                    passed: false
+            // Draw game elements
+            drawRoad(ctx);
+            drawObstacles(ctx);
+            drawCar(ctx);
+            
+            // Generate obstacles
+            const now = Date.now();
+            if (now - lastObstacleTime > obstacleInterval) {
+                const obstacleWidth = Math.random() * 50 + 30;
+                const obstacleX = Math.random() * (racingCanvas.width - obstacleWidth - 100) + 50;
+                
+                obstacles.push({
+                    x: obstacleX,
+                    y: -30,
+                    width: obstacleWidth,
+                    height: 30
                 });
-                lastPipe = flappyCanvas.width;
+                
+                lastObstacleTime = now;
+                
+                // Increase difficulty
+                if (score > 0 && score % 5 === 0) {
+                    obstacleSpeed = Math.min(8, 3 + Math.floor(score / 5) * 0.5);
+                    roadSpeed = Math.min(6, 3 + Math.floor(score / 5) * 0.3);
+                    obstacleInterval = Math.max(800, 2000 - Math.floor(score / 5) * 100);
+                }
             }
             
-            // Move pipes
-            for (let i = pipes.length - 1; i >= 0; i--) {
-                pipes[i].x -= pipeSpeed;
+            // Move obstacles
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].y += obstacleSpeed;
                 
                 // Check if passed
-                if (!pipes[i].passed && pipes[i].x < flappyBird.x - flappyBird.radius) {
-                    pipes[i].passed = true;
+                if (obstacles[i].y > racingCanvas.height) {
+                    obstacles.splice(i, 1);
                     score++;
                     scoreDisplay.textContent = `Score: ${score}`;
                 }
                 
-                // Remove off-screen pipes
-                if (pipes[i].x < -pipeWidth) {
-                    pipes.splice(i, 1);
-                }
-            }
-            
-            // Check collisions
-            let collision = false;
-            
-            // With ground or ceiling
-            if (flappyBird.y + flappyBird.radius > flappyCanvas.height || 
-                flappyBird.y - flappyBird.radius < 0) {
-                collision = true;
-            }
-            
-            // With pipes
-            for (const pipe of pipes) {
+                // Check collision
                 if (
-                    flappyBird.x + flappyBird.radius > pipe.x && 
-                    flappyBird.x - flappyBird.radius < pipe.x + pipeWidth && 
-                    (flappyBird.y - flappyBird.radius < pipe.topHeight || 
-                     flappyBird.y + flappyBird.radius > pipe.topHeight + pipeGap)
+                    car.x < obstacles[i].x + obstacles[i].width &&
+                    car.x + car.width > obstacles[i].x &&
+                    car.y < obstacles[i].y + obstacles[i].height &&
+                    car.y + car.height > obstacles[i].y
                 ) {
-                    collision = true;
+                    gameRunning = false;
+                    alert(`Game Over! Your score: ${score}`);
+                    return;
                 }
             }
-            
-            if (collision) {
-                gameRunning = false;
-                alert(`Game Over! Your score: ${score}`);
-                return;
-            }
-            
-            drawFlappyBird();
-            drawPipes();
             
             if (gameRunning) {
-                requestAnimationFrame(updateFlappy);
+                animationFrameId = requestAnimationFrame(updateRacing);
             }
         }
         
@@ -587,22 +646,29 @@
                     };
                     updateBreakout();
                 } else {
-                    flappyBird = {
-                        x: 50,
-                        y: flappyCanvas.height / 2,
-                        radius: 15,
-                        velocity: 0,
-                        gravity: 0.5,
-                        jump: -10
+                    car = {
+                        x: racingCanvas.width / 2 - 20,
+                        y: racingCanvas.height - 100,
+                        width: 40,
+                        height: 70,
+                        speed: 5
                     };
-                    pipes = [];
-                    lastPipe = 0;
-                    updateFlappy();
+                    obstacles = [];
+                    roadSpeed = 3;
+                    obstacleSpeed = 3;
+                    obstacleInterval = 2000;
+                    lastObstacleTime = 0;
+                    updateRacing();
                 }
             }
         }
         
         function resetGame() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            
             gameRunning = false;
             score = 0;
             scoreDisplay.textContent = `Score: ${score}`;
@@ -616,22 +682,18 @@
                     dx: 3,
                     dy: -3
                 };
-                ctx.clearRect(0, 0, breakoutCanvas.width, breakoutCanvas.height);
-                drawBreakoutPlayer();
-                drawBreakoutBall();
+                drawBreakout();
             } else {
-                flappyBird = {
-                    x: 50,
-                    y: flappyCanvas.height / 2,
-                    radius: 15,
-                    velocity: 0,
-                    gravity: 0.5,
-                    jump: -10
+                car = {
+                    x: racingCanvas.width / 2 - 20,
+                    y: racingCanvas.height - 100,
+                    width: 40,
+                    height: 70,
+                    speed: 5
                 };
-                pipes = [];
-                lastPipe = 0;
-                ctx.clearRect(0, 0, flappyCanvas.width, flappyCanvas.height);
-                drawFlappyBird();
+                obstacles = [];
+                roadY = 0;
+                drawRacing();
             }
         }
         
@@ -651,38 +713,37 @@
                         breakoutPlayer.x -= breakoutPlayer.speed;
                     }
                 }
-            } else if (currentGame === 'flappy' && (e.key === ' ' || e.key === 'ArrowUp')) {
-                if (gameRunning) {
-                    flappyBird.velocity = flappyBird.jump;
+            } else if (currentGame === 'racing') {
+                if (e.key === 'Right' || e.key === 'ArrowRight') {
+                    if (car.x < racingCanvas.width - car.width - 50) {
+                        car.x += car.speed;
+                    }
+                } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+                    if (car.x > 50) {
+                        car.x -= car.speed;
+                    }
                 }
             }
         });
         
         // Touch controls for mobile
         activeCanvas.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
+            e.preventDefault();
+            const touchX = e.touches[0].clientX;
+            const canvasRect = activeCanvas.getBoundingClientRect();
+            const touchPos = touchX - canvasRect.left;
             
-            if (currentGame === 'flappy') {
-                if (gameRunning) {
-                    flappyBird.velocity = flappyBird.jump;
+            if (currentGame === 'racing') {
+                if (touchPos > canvasRect.width / 2) {
+                    // Right side tapped
+                    if (car.x < racingCanvas.width - car.width - 50) {
+                        car.x += car.speed;
+                    }
                 } else {
-                    startGame();
-                }
-            }
-        });
-        
-        activeCanvas.addEventListener('touchmove', (e) => {
-            if (currentGame === 'breakout') {
-                const touchX = e.touches[0].clientX;
-                const canvasRect = activeCanvas.getBoundingClientRect();
-                const canvasX = touchX - canvasRect.left;
-                
-                breakoutPlayer.x = canvasX - breakoutPlayer.width / 2;
-                
-                // Keep paddle within canvas
-                if (breakoutPlayer.x < 0) breakoutPlayer.x = 0;
-                if (breakoutPlayer.x > breakoutCanvas.width - breakoutPlayer.width) {
-                    breakoutPlayer.x = breakoutCanvas.width - breakoutPlayer.width;
+                    // Left side tapped
+                    if (car.x > 50) {
+                        car.x -= car.speed;
+                    }
                 }
             }
         });
@@ -690,12 +751,13 @@
         // Handle window resize
         window.addEventListener('resize', () => {
             initCanvases();
-            resetGame();
+            if (!gameRunning) {
+                resetGame();
+            }
         });
         
         // Initialize
         initCanvases();
-        resetGame();
     </script>
 </body>
 </html>

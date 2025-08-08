@@ -512,34 +512,45 @@
         
         // Car Racing game functions
         function drawRoad(ctx) {
-            // Road background
-            ctx.fillStyle = '#333';
-            ctx.fillRect(0, 0, racingCanvas.width, racingCanvas.height);
-            
-            // Road markings
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([20, 20]);
-            
+    // Road background
+    ctx.fillStyle = '#333';
+    ctx.fillRect(0, 0, racingCanvas.width, racingCanvas.height);
+    
+    // Road markings
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([20, 20]);
+    
+    // Draw multiple segments of the road to ensure continuous lines
+    const segmentHeight = 40; // Height of each road segment
+    const segmentsToDraw = Math.ceil(racingCanvas.height / segmentHeight) + 1;
+    
+    for (let i = 0; i < segmentsToDraw; i++) {
+        const yPos = (roadY + i * segmentHeight) % roadHeight;
+        
+        // Only draw if this segment is visible on canvas
+        if (yPos + segmentHeight > 0 && yPos < racingCanvas.height) {
             // Center line
             ctx.beginPath();
-            ctx.moveTo(racingCanvas.width / 2, roadY % roadHeight);
-            ctx.lineTo(racingCanvas.width / 2, (roadY % roadHeight) + racingCanvas.height);
+            ctx.moveTo(racingCanvas.width / 2, yPos);
+            ctx.lineTo(racingCanvas.width / 2, yPos + segmentHeight);
             ctx.stroke();
             
             // Side lines
             ctx.beginPath();
-            ctx.moveTo(50, roadY % roadHeight);
-            ctx.lineTo(50, (roadY % roadHeight) + racingCanvas.height);
+            ctx.moveTo(50, yPos);
+            ctx.lineTo(50, yPos + segmentHeight);
             ctx.stroke();
             
             ctx.beginPath();
-            ctx.moveTo(racingCanvas.width - 50, roadY % roadHeight);
-            ctx.lineTo(racingCanvas.width - 50, (roadY % roadHeight) + racingCanvas.height);
+            ctx.moveTo(racingCanvas.width - 50, yPos);
+            ctx.lineTo(racingCanvas.width - 50, yPos + segmentHeight);
             ctx.stroke();
-            
-            ctx.setLineDash([]);
         }
+    }
+    
+    ctx.setLineDash([]);
+}
         
         function drawCar(ctx) {
             // Car body
@@ -565,70 +576,70 @@
             });
         }
         
-        function updateRacing() {
-            const ctx = racingCanvas.getContext('2d');
-            ctx.clearRect(0, 0, racingCanvas.width, racingCanvas.height);
-            
-            // Update road position
-            roadY += roadSpeed;
-            
-            // Draw game elements
-            drawRoad(ctx);
-            drawObstacles(ctx);
-            drawCar(ctx);
-            
-            // Generate obstacles
-            const now = Date.now();
-            if (now - lastObstacleTime > obstacleInterval) {
-                const obstacleWidth = Math.random() * 50 + 30;
-                const obstacleX = Math.random() * (racingCanvas.width - obstacleWidth - 100) + 50;
-                
-                obstacles.push({
-                    x: obstacleX,
-                    y: -30,
-                    width: obstacleWidth,
-                    height: 30
-                });
-                
-                lastObstacleTime = now;
-                
-                // Increase difficulty
-                if (score > 0 && score % 5 === 0) {
-                    obstacleSpeed = Math.min(8, 3 + Math.floor(score / 5) * 0.5);
-                    roadSpeed = Math.min(6, 3 + Math.floor(score / 5) * 0.3);
-                    obstacleInterval = Math.max(800, 2000 - Math.floor(score / 5) * 100);
-                }
-            }
-            
-            // Move obstacles
-            for (let i = obstacles.length - 1; i >= 0; i--) {
-                obstacles[i].y += obstacleSpeed;
-                
-                // Check if passed
-                if (obstacles[i].y > racingCanvas.height) {
-                    obstacles.splice(i, 1);
-                    score++;
-                    scoreDisplay.textContent = `Score: ${score}`;
-                }
-                
-                // Check collision
-                if (
-                    car.x < obstacles[i].x + obstacles[i].width &&
-                    car.x + car.width > obstacles[i].x &&
-                    car.y < obstacles[i].y + obstacles[i].height &&
-                    car.y + car.height > obstacles[i].y
-                ) {
-                    gameRunning = false;
-                    alert(`Game Over! Your score: ${score}`);
-                    return;
-                }
-            }
-            
-            if (gameRunning) {
-                animationFrameId = requestAnimationFrame(updateRacing);
-            }
+       function updateRacing() {
+    const ctx = racingCanvas.getContext('2d');
+    ctx.clearRect(0, 0, racingCanvas.width, racingCanvas.height);
+    
+    // Update road position
+    roadY += roadSpeed;
+    
+    // Draw game elements
+    drawRoad(ctx);
+    drawObstacles(ctx);
+    drawCar(ctx);
+    
+    // Generate obstacles
+    const now = Date.now();
+    if (now - lastObstacleTime > obstacleInterval) {
+        const obstacleWidth = Math.random() * 50 + 30;
+        const obstacleX = Math.random() * (racingCanvas.width - obstacleWidth - 100) + 50;
+        
+        obstacles.push({
+            x: obstacleX,
+            y: -30,
+            width: obstacleWidth,
+            height: 30
+        });
+        
+        lastObstacleTime = now;
+        
+        // Increase difficulty
+        if (score > 0 && score % 5 === 0) {
+            obstacleSpeed = Math.min(8, 3 + Math.floor(score / 5) * 0.5);
+            roadSpeed = Math.min(6, 3 + Math.floor(score / 5) * 0.3);
+            obstacleInterval = Math.max(800, 2000 - Math.floor(score / 5) * 100);
+        }
+    }
+    
+    // Move obstacles and check collisions
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        obstacles[i].y += obstacleSpeed;
+        
+        // Check if passed (changed from > to >= to ensure removal)
+        if (obstacles[i].y >= racingCanvas.height) {
+            obstacles.splice(i, 1);
+            score++;
+            scoreDisplay.textContent = `Score: ${score}`;
+            continue; // Skip collision check for removed obstacle
         }
         
+        // Check collision
+        if (
+            car.x < obstacles[i].x + obstacles[i].width &&
+            car.x + car.width > obstacles[i].x &&
+            car.y < obstacles[i].y + obstacles[i].height &&
+            car.y + car.height > obstacles[i].y
+        ) {
+            gameRunning = false;
+            alert(`Game Over! Your score: ${score}`);
+            return;
+        }
+    }
+    
+    if (gameRunning) {
+        animationFrameId = requestAnimationFrame(updateRacing);
+    }
+}
         // Game controls
         function startGame() {
             if (!gameRunning) {

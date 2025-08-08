@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zafar Iqbal - Game Developer Resume</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        /* Retro Game Styling */
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        :root {
+            --pixel-font: 'Press Start 2P', cursive;
+            --bg-dark: #0f0f1b;
+            --bg-light: #1a1a2e;
+            --accent-blue: #00f0ff;
+            --accent-red: #ff2d75;
+            --accent-yellow: #ffcc00;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--pixel-font);
+            background-color: var(--bg-dark);
+            color: white;
+            overflow-x: hidden;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="%2300f0ff"><circle cx="8" cy="8" r="6"/></svg>'), auto;
+        }
+
+        /* Game Canvas Background */
+        #game-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* Pixel Art UI */
+        .pixel-panel {
+            background: var(--bg-light);
+            border: 4px solid var(--accent-blue);
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.5);
+            padding: 30px;
+            margin: 40px 0;
+            position: relative;
+            transform: translateY(50px);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .pixel-panel.active {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .pixel-panel::before {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            right: -10px;
+            width: 100%;
+            height: 100%;
+            background: var(--accent-red);
+            z-index: -1;
+            opacity: 0.7;
+        }
+
+        /* Game UI Elements */
+        #game-hud {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 3px solid var(--accent-yellow);
+            padding: 10px 20px;
+            z-index: 1000;
+        }
+
+        #hud-score {
+            color: var(--accent-yellow);
+            font-size: 1.2rem;
+        }
+
+        /* Navigation Buttons */
+        .btn-game {
+            background: var(--accent-blue);
+            color: black;
+            border: none;
+            padding: 12px 24px;
+            font-family: var(--pixel-font);
+            font-size: 0.9rem;
+            margin: 10px 5px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .btn-game:hover {
+            background: var(--accent-yellow);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-game:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* Skill Bars (Game UI Style) */
+        .skill-bar {
+            width: 100%;
+            height: 30px;
+            background: #333;
+            margin: 15px 0;
+            position: relative;
+            border: 2px solid #000;
+        }
+
+        .skill-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff2d75, #ffcc00);
+            width: 0;
+            transition: width 1.5s ease-out;
+        }
+
+        /* Mini-Game Container */
+        #mini-game-container {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border: 4px solid var(--accent-red);
+            margin: 30px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Character Avatar */
+        #character-avatar {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            width: 60px;
+            height: 60px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="10" y="10" width="44" height="44" fill="%2300f0ff"/><rect x="20" y="20" width="24" height="24" fill="%231a1a2e"/></svg>');
+            z-index: 999;
+            transition: all 0.3s ease;
+        }
+
+        /* Animations */
+        @keyframes pixelate {
+            0% { filter: blur(0px); }
+            50% { filter: blur(2px); }
+            100% { filter: blur(0px); }
+        }
+
+        .pixelate {
+            animation: pixelate 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <!-- 3D Background -->
+    <div id="game-bg"></div>
+
+    <!-- Game HUD -->
+    <div id="game-hud">
+        <div id="hud-score">SCORE: 0</div>
+        <div id="hud-level">LEVEL: ABOUT</div>
+    </div>
+
+    <!-- Character Avatar -->
+    <div id="character-avatar"></div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- About Section -->
+        <section id="about" class="pixel-panel active">
+            <h1>ZAFAR IQBAL</h1>
+            <h2 style="color: var(--accent-blue);">UNITY GAME DEVELOPER</h2>
+            <p>Specializing in gameplay programming, C#, and interactive systems.</p>
+            <button class="btn-game" onclick="loadLevel('experience')">START JOURNEY →</button>
+        </section>
+
+        <!-- Experience Section -->
+        <section id="experience" class="pixel-panel">
+            <h2 style="color: var(--accent-red);">⚔️ DEVELOPMENT EXPERIENCE</h2>
+            <div class="timeline">
+                <div class="event">
+                    <h3>UNITY DEVELOPER</h3>
+                    <p>Fazbrolab / Khaleef Technology</p>
+                    <ul>
+                        <li>Built core game mechanics in C#</li>
+                        <li>Optimized mobile performance</li>
+                        <li>Created editor tools for designers</li>
+                    </ul>
+                </div>
+            </div>
+            <button class="btn-game" onclick="startMiniGame()">PLAY CODE CHALLENGE</button>
+            <button class="btn-game" onclick="loadLevel('skills')">NEXT →</button>
+        </section>
+
+        <!-- Skills Section -->
+        <section id="skills" class="pixel-panel">
+            <h2 style="color: var(--accent-yellow);">🛠️ DEV SKILLS</h2>
+            
+            <div class="skill-container">
+                <h4>UNITY ENGINE</h4>
+                <div class="skill-bar">
+                    <div class="skill-fill" style="width: 90%;"></div>
+                </div>
+                
+                <h4>C# PROGRAMMING</h4>
+                <div class="skill-bar">
+                    <div class="skill-fill" style="width: 85%;"></div>
+                </div>
+                
+                <h4>GAME PHYSICS</h4>
+                <div class="skill-bar">
+                    <div class="skill-fill" style="width: 80%;"></div>
+                </div>
+            </div>
+            
+            <div id="mini-game-container"></div>
+            <button class="btn-game" onclick="loadLevel('projects')">NEXT →</button>
+        </section>
+
+        <!-- Projects Section -->
+        <section id="projects" class="pixel-panel">
+            <h2 style="color: var(--accent-blue);">🏆 GAME PROJECTS</h2>
+            <div class="project">
+                <h3>RICE INSPECTION SYSTEM (ML)</h3>
+                <p>Computer vision with VGG16 model</p>
+                <button class="btn-game" onclick="showProjectDemo()">VIEW DEMO</button>
+            </div>
+            <button class="btn-game" onclick="loadLevel('contact')">FINAL LEVEL →</button>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact" class="pixel-panel">
+            <h2 style="color: var(--accent-red);">🎮 CONTACT</h2>
+            <p>Ready to build amazing games together?</p>
+            <button class="btn-game" onclick="sendMessage()">SEND QUEST INVITE</button>
+            <button class="btn-game" onclick="resetGame()">NEW GAME+</button>
+        </section>
+    </div>
+
+    <script>
+        // ========== GAME STATE ========== //
+        let score = 0;
+        let currentLevel = "about";
+        const avatar = document.getElementById("character-avatar");
+
+        // ========== 3D BACKGROUND ========== //
+        function init3DBackground() {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById("game-bg").appendChild(renderer.domElement);
+
+            // Floating cubes
+            const geometry = new THREE.BoxGeometry();
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0x00f0ff,
+                wireframe: true 
+            });
+            
+            const cubes = [];
+            for (let i = 0; i < 10; i++) {
+                const cube = new THREE.Mesh(geometry, material);
+                cube.position.x = Math.random() * 20 - 10;
+                cube.position.y = Math.random() * 20 - 10;
+                cube.position.z = Math.random() * 20 - 10;
+                cube.rotationSpeed = Math.random() * 0.02;
+                scene.add(cube);
+                cubes.push(cube);
+            }
+
+            camera.position.z = 30;
+
+            function animate() {
+                requestAnimationFrame(animate);
+                cubes.forEach(cube => {
+                    cube.rotation.x += cube.rotationSpeed;
+                    cube.rotation.y += cube.rotationSpeed;
+                });
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        // ========== GAME FUNCTIONS ========== //
+        function loadLevel(levelId) {
+            // Animate out current level
+            document.getElementById(currentLevel).classList.remove("active");
+            
+            // Pixelate transition effect
+            document.body.classList.add("pixelate");
+            setTimeout(() => {
+                document.body.classList.remove("pixelate");
+            }, 300);
+            
+            // Load new level
+            setTimeout(() => {
+                document.getElementById(levelId).classList.add("active");
+                currentLevel = levelId;
+                updateScore(50);
+                document.getElementById("hud-level").textContent = `LEVEL: ${levelId.toUpperCase()}`;
+                
+                // Animate skill bars
+                if (levelId === "skills") {
+                    setTimeout(() => {
+                        document.querySelectorAll(".skill-fill").forEach(bar => {
+                            bar.style.width = bar.style.width; // Trigger animation
+                        });
+                    }, 500);
+                }
+            }, 500);
+        }
+
+        function updateScore(points) {
+            score += points;
+            document.getElementById("hud-score").textContent = `SCORE: ${score}`;
+            
+            // Visual feedback
+            const hud = document.getElementById("game-hud");
+            hud.style.transform = "scale(1.1)";
+            setTimeout(() => {
+                hud.style.transform = "scale(1)";
+            }, 200);
+        }
+
+        function startMiniGame() {
+            const container = document.getElementById("mini-game-container");
+            container.innerHTML = `
+                <canvas id="breakout-game" width="${container.offsetWidth}" height="${container.offsetHeight}"></canvas>
+            `;
+            
+            // Simple Breakout Game
+            const canvas = document.getElementById("breakout-game");
+            const ctx = canvas.getContext("2d");
+            
+            // Game code would go here (omitted for brevity)
+            ctx.fillStyle = var(--accent-blue);
+            ctx.font = "24px 'Press Start 2P'";
+            ctx.fillText("GAME DEMO LOADING...", 50, 150);
+            
+            updateScore(100);
+        }
+
+        function sendMessage() {
+            alert("📜 Quest invitation sent! Let's build something awesome!");
+            updateScore(200);
+        }
+
+        function resetGame() {
+            score = 0;
+            currentLevel = "about";
+            document.getElementById("hud-score").textContent = `SCORE: 0`;
+            document.querySelectorAll(".pixel-panel").forEach(panel => {
+                panel.classList.remove("active");
+            });
+            document.getElementById("about").classList.add("active");
+        }
+
+        // ========== KEYBOARD CONTROLS ========== //
+        document.addEventListener("keydown", (e) => {
+            const key = e.key;
+            const avatarPos = parseInt(avatar.style.left) || 30;
+            
+            if (key === "ArrowRight" || key === "d") {
+                avatar.style.left = (avatarPos + 20) + "px";
+            } else if (key === "ArrowLeft" || key === "a") {
+                avatar.style.left = (avatarPos - 20) + "px";
+            } else if (key === " ") {
+                // Jump animation
+                avatar.style.bottom = "60px";
+                setTimeout(() => {
+                    avatar.style.bottom = "30px";
+                }, 300);
+            }
+        });
+
+        // Initialize
+        window.onload = function() {
+            init3DBackground();
+            
+            // Animate in first panel
+            setTimeout(() => {
+                document.getElementById("about").classList.add("active");
+            }, 500);
+        };
+    </script>
+</body>
+</html>
